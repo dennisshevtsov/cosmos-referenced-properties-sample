@@ -5,10 +5,14 @@
 namespace CosmosReferencedPropertiesSample.DataAccess.Extensions
 {
   using System;
-  using CosmosReferencedPropertiesSample.DataAccess.Repositories;
+
+  using AutoMapper;
   using Microsoft.EntityFrameworkCore;
   using Microsoft.Extensions.DependencyInjection;
-  
+
+  using CosmosReferencedPropertiesSample.DataAccess.Profiles;
+  using CosmosReferencedPropertiesSample.DataAccess.Repositories;
+
   public static class ServicesExtensions
   {
     public static IServiceCollection AddDataAccess(
@@ -45,6 +49,8 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Extensions
 
       services.AddScoped<IProductRepository, ProductRepository>();
       services.AddScoped<IOrderRepository, OrderRepository>();
+
+      services.AddAutoMapper(typeof(OrderProducRelationProfile).Assembly);
 
       return services;
     }

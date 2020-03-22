@@ -9,15 +9,21 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Repositories
   using System.Threading;
   using System.Threading.Tasks;
 
+  using AutoMapper;
+
   using CosmosReferencedPropertiesSample.DataAccess.Entities;
 
   internal sealed class OrderRepository : IOrderRepository
   {
+    private readonly IMapper _mapper;
     private readonly IDbContextProvider _dbContextProvider;
     private readonly IProductRepository _productRepository;
 
-    public OrderRepository(IDbContextProvider dbContextProvider, IProductRepository productRepository)
+    public OrderRepository(IMapper mapper,
+                           IDbContextProvider dbContextProvider,
+                           IProductRepository productRepository)
     {
+      _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
       _dbContextProvider = dbContextProvider ?? throw new ArgumentNullException(nameof(dbContextProvider));
       _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
     }
@@ -35,15 +41,14 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Repositories
           orderEntity.ProductIdCollection, cancellationToken);
         orderEntity.ProductIdCollection = orderEntity.Products.Select(entity => entity.Id);
 
-        foreach (var product in orderEntity.Products)
+        foreach (var productEntity in orderEntity.Products)
         {
-          context.Add(new OrderProductRelationEntity
-          {
-            OrderId = orderEntity.Id,
-            ProductId = product.Id,
-            Sku = product.Sku,
-            Name = product.Name,
-          });
+          var relation = new OrderProductRelationEntity();
+
+          _mapper.Map(orderEntity, relation);
+          _mapper.Map(productEntity, relation);
+
+          context.Add(relation);
         }
 
         await context.SaveChangesAsync(cancellationToken);

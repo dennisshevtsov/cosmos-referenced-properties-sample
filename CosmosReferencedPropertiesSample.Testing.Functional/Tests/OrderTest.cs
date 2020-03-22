@@ -41,13 +41,13 @@ namespace CosmosReferencedPropertiesSample.Testing.Functional.Tests
     public void Cleanup() => _disposable?.Dispose();
 
     [TestMethod]
-    public async Task CreateOrderTest()
+    public async Task Create_Order_Then_Update_Product_Then_Get_Order_Products_Test()
     {
-      var product0Task = await _productRepository.CreateProducAsync(
+      var product0 = await _productRepository.CreateProducAsync(
         ProductGenerator.GenerateProduct(), CancellationToken.None);
-      var product1Task = await _productRepository.CreateProducAsync(
+      var product1 = await _productRepository.CreateProducAsync(
         ProductGenerator.GenerateProduct(), CancellationToken.None);
-      var product2Task = await _productRepository.CreateProducAsync(
+      var product2 = await _productRepository.CreateProducAsync(
         ProductGenerator.GenerateProduct(), CancellationToken.None);
 
       var order = new OrderEntity
@@ -57,10 +57,10 @@ namespace CosmosReferencedPropertiesSample.Testing.Functional.Tests
         {
           Guid.NewGuid(),
           Guid.NewGuid(),
-          product0Task.Id,
+          product0.Id,
           Guid.NewGuid(),
-          product1Task.Id,
-          product2Task.Id,
+          product1.Id,
+          product2.Id,
           Guid.NewGuid(),
         }
       };
@@ -74,29 +74,27 @@ namespace CosmosReferencedPropertiesSample.Testing.Functional.Tests
       var products = order.Products.ToArray();
 
       Assert.AreEqual(3, products.Length);
-      Assert.IsTrue(products.Any(product => product.Id == product0Task.Id));
-      Assert.IsTrue(products.Any(product => product.Id == product1Task.Id));
-      Assert.IsTrue(products.Any(product => product.Id == product2Task.Id));
+      Assert.IsTrue(products.Any(product => product.Id == product0.Id));
+      Assert.IsTrue(products.Any(product => product.Id == product1.Id));
+      Assert.IsTrue(products.Any(product => product.Id == product2.Id));
 
       var productIdCollection = order.ProductIdCollection.ToArray();
 
       Assert.AreEqual(3, productIdCollection.Length);
-      Assert.IsTrue(productIdCollection.Any(id => id == product0Task.Id));
-      Assert.IsTrue(productIdCollection.Any(id => id == product1Task.Id));
-      Assert.IsTrue(productIdCollection.Any(id => id == product2Task.Id));
+      Assert.IsTrue(productIdCollection.Any(id => id == product0.Id));
+      Assert.IsTrue(productIdCollection.Any(id => id == product1.Id));
+      Assert.IsTrue(productIdCollection.Any(id => id == product2.Id));
+
+      product0.Sku = ProductGenerator.GenerateToken();
+
+      await _productRepository.UpdateProducAsync(product0, CancellationToken.None);
 
       var productsForOrder = await _productRepository.GetProductsForOrderAsync(
         order.Id, OrderProductSortProperty.Sku, SortDirection.Descending, CancellationToken.None);
 
       Assert.IsNotNull(productsForOrder);
 
-      var controlProductsForOrder = new[]
-                                    {
-                                      product0Task,
-                                      product1Task,
-                                      product2Task,
-                                    }
-                                    .OrderBy(product => product.OrderId)
+      var controlProductsForOrder = new[] { product0, product1, product2, }
                                     .OrderByDescending(product => product.Sku)
                                     .ToArray();
       var testProductsForOrder = productsForOrder.ToArray();
@@ -109,7 +107,6 @@ namespace CosmosReferencedPropertiesSample.Testing.Functional.Tests
         Assert.AreEqual(controlProductsForOrder[i].Name, testProductsForOrder[i].Name);
         Assert.AreEqual(controlProductsForOrder[i].Description, testProductsForOrder[i].Description);
         Assert.AreEqual(controlProductsForOrder[i].Sku, testProductsForOrder[i].Sku);
-        Assert.AreEqual(controlProductsForOrder[i].Enabled, testProductsForOrder[i].Enabled);
       }
     }
   }

@@ -10,6 +10,7 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Repositories
   using System.Threading;
   using System.Threading.Tasks;
 
+  using AutoMapper;
   using Microsoft.EntityFrameworkCore;
 
   using CosmosReferencedPropertiesSample.DataAccess.Defaults;
@@ -17,10 +18,14 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Repositories
 
   public sealed class ProductRepository : IProductRepository
   {
+    private readonly IMapper _mapper;
     private readonly IDbContextProvider _dbContextProvider;
 
-    public ProductRepository(IDbContextProvider dbContextProvider)
-      => _dbContextProvider = dbContextProvider ?? throw new ArgumentNullException(nameof(dbContextProvider));
+    public ProductRepository(IMapper mapper, IDbContextProvider dbContextProvider)
+    {
+      _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+      _dbContextProvider = dbContextProvider ?? throw new ArgumentNullException(nameof(dbContextProvider));
+    }
 
     public async Task<ProductEntity> CreateProducAsync(
       ProductEntity productEntity, CancellationToken cancellationToken)
@@ -40,21 +45,23 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Repositories
     {
       using (var context = _dbContextProvider.GetNewDbContext())
       {
-        var entry = context.Add(productEntity);
+        var dbEntity = await context.FindAsync<ProductEntity>(
+          new object[] { productEntity.Id, }, cancellationToken);
+        var dbEntry = context.Entry(dbEntity);
+
+        dbEntry.CurrentValues.SetValues(productEntity);
 
         var relations = await context.Set<OrderProductRelationEntity>()
                                      .Where(entity => entity.ProductId == productEntity.Id)
                                      .ToArrayAsync(cancellationToken);
 
-        foreach (var relation in relations)
-        {
-          relation.Name = productEntity.Name;
-          relation.Sku = productEntity.Sku;
-        }
+        Parallel.ForEach(relations, relation => _mapper.Map(productEntity, relation));
 
         await context.SaveChangesAsync();
 
-        return entry.Entity;
+        dbEntry.State = EntityState.Detached;
+
+        return dbEntity;
       }
     }
 
@@ -72,13 +79,10 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Repositories
 
         query = SortProducts(query, sortProperty, sortDirection);
 
-        var productIdCollection = await query.Select(entity => entity.ProductId)
-                                             .ToArrayAsync();
+        var relations = await query.ToArrayAsync(cancellationToken);
+        var products = _mapper.Map<IEnumerable<ProductEntity>>(relations);
 
-        return await context.Set<ProductEntity>()
-                            .AsNoTracking()
-                            .Where(entity => productIdCollection.Contains(entity.Id))
-                            .ToArrayAsync();
+        return products;
       }
     }
 

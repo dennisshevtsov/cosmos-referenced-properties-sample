@@ -16,6 +16,10 @@ namespace CosmosReferencedPropertiesSample.DataAccess.Configurations
       builder.Property(entity => entity.OrderId).ToJsonProperty("orderId").IsRequired();
       builder.Property(entity => entity.ProductId).ToJsonProperty("productId").IsRequired();
 
+      builder.Property(entity => entity.Name).ToJsonProperty("name").IsRequired().HasMaxLength(256);
+      builder.Property(entity => entity.Description).ToJsonProperty("description").IsRequired().HasMaxLength(512);
+      builder.Property(entity => entity.Sku).ToJsonProperty("sku").IsRequired().HasMaxLength(16);
+
       builder.HasOne(entity => entity.Order)
              .WithMany(entity => entity.OrderProductRelations)
              .HasForeignKey(entity => entity.OrderId)
